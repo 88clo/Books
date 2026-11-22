@@ -373,7 +373,15 @@ body.np-open{overflow:hidden}
 .sh-card-m{color:var(--muted);font-size:.84rem}
 .sh-card-bar{height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden}.sh-card-bar i{display:block;height:100%;background:var(--brass)}
 .sh-more{color:var(--muted);font-size:.88rem;margin:4px 0 10px;font-style:italic}
-.nb-path{margin:0 0 10px;font-size:.92rem;color:var(--ink-soft)}
+.nb-path{margin:16px 0 0;padding:12px 14px;border:1px solid rgba(122,31,26,.22);border-radius:6px;background:rgba(255,255,255,.35);font-size:.92rem;color:var(--ink-soft)}
+.pb-top{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
+.pb-top .nb-path-m{margin-left:auto;font-size:.82rem}
+.pb-bar{height:4px;background:rgba(60,35,15,.12);border-radius:2px;margin:8px 0 10px;overflow:hidden}.pb-bar i{display:block;height:100%;background:var(--brass)}
+.pb-nav{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pb-go{display:flex;flex-direction:column;gap:2px;text-align:left;background:var(--parchment);border:1px solid rgba(60,35,15,.25);border-radius:5px;padding:8px 10px;font:inherit;color:var(--ink);cursor:pointer;min-width:0;min-height:44px}
+.pb-go small{font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;color:var(--rubric)}.pb-go b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pb-next{text-align:right;align-items:flex-end}.pb-none{opacity:.45;cursor:default}
+.pb-unread{display:block;width:100%;margin-top:8px;background:none;border:0;border-top:1px dashed rgba(60,35,15,.25);padding:8px 0 0;font:inherit;font-size:.88rem;color:var(--ink-soft);text-align:left;cursor:pointer}.pb-unread b{color:var(--ink)}
 .nb-path-k{font-family:var(--display);letter-spacing:.06em;text-transform:uppercase;font-size:.75rem;color:var(--rubric)}
 .nb-path-b{background:none;border:0;padding:0;font:inherit;font-weight:600;color:var(--ink);border-bottom:2px solid var(--brass);cursor:pointer}
 @media (max-width:600px){.sh-prog{white-space:normal;display:block;margin:4px 0 0}.sh-cont{grid-template-columns:1fr 1fr}.sh-card{padding:8px 9px}.sh-card-t{font-size:.92rem}}
@@ -19041,7 +19049,6 @@ QA({
 });
 
 </script>
-
 <script>
 /* Questions worth asking: latin-america collections 0-14 (run 19) */
 QA({
@@ -31677,13 +31684,13 @@ const pickText=ta=>{if(!ta)return"";const s=ta.selectionStart,e=ta.selectionEnd;
 const searchFor=(t,ctx)=>{t=(t||"").trim();if(!t&&!ctx)return;const q=(ctx?ctx+" ":"")+t;window.open("https://www.google.com/search?q="+encodeURIComponent(q.slice(0,400)),"_blank","noopener")};
 const autoGrow=ta=>{ta.style.height="auto";ta.style.height=Math.min(ta.scrollHeight+2,window.innerHeight*.6)+"px"};
 const pathOf=id=>(window.ALL_PATHS||[]).find(p=>p.books.includes(id));
-const pathChip=b=>{const p=pathOf(b.id);if(!p)return"";const d=p.books.filter(i=>readSet.has(i)).length;return `<div class="nb-path"><span class="nb-path-k">Reading path</span> <button type="button" class="nb-path-b" data-nact="path" data-path="${p.id}">${esc(p.title)}</button> <span class="nb-path-m">${d} of ${p.books.length} read</span></div>`};
+const pathChip=b=>{const p=pathOf(b.id);if(!p)return"";const L=p.books,i=L.indexOf(b.id),d=L.filter(x=>readSet.has(x)).length;const prev=byId[L[i-1]],next=byId[L[i+1]];let nu=null;for(let k=1;k<L.length;k++){const x=L[(i+k)%L.length];if(!readSet.has(x)){nu=byId[x];break}}const nb=(o,cls,lab)=>o?`<button type="button" class="pb-go ${cls}" data-nact="pgo" data-id="${o.id}" title="${esc(o.t)}"><small>${lab}</small><b>${esc(o.t)}</b></button>`:`<span class="pb-go ${cls} pb-none"><small>${lab}</small><b>${cls==="pb-prev"?"Start of path":"End of path"}</b></span>`;return `<div class="nb-path"><div class="pb-top"><span class="nb-path-k">Reading path · book ${i+1} of ${L.length}</span><button type="button" class="nb-path-b" data-nact="path" data-path="${p.id}">${esc(p.title)} ›</button><span class="nb-path-m">${d} of ${L.length} read</span></div><div class="pb-bar"><i style="width:${Math.round(d/L.length*100)}%"></i></div><div class="pb-nav">${nb(prev,"pb-prev","‹ Previous")}${nb(next,"pb-next","Next ›")}</div>${nu&&nu!==next?`<button type="button" class="pb-unread" data-nact="pgo" data-id="${nu.id}">Jump to next unread: <b>${esc(nu.t)}</b> ›</button>`:""}</div>`};
 const qaHTML=b=>{const L=(window.QAD||{})[b.id];if(!L||!L.length)return"";return `<div class="page qa-page"><div class="nb-head"><h3>Questions worth asking</h3><button type="button" class="qa-all" data-nact="qaall">Show all answers</button></div><p class="qa-hint">Tap a question for a one-line answer.</p><div class="qa-list">${L.map(([q,a],i)=>`<details class="qa"><summary>${esc(q)}</summary><p class="qa-a">${esc(a)}</p><div class="qa-btns"><button type="button" data-nact="qanote" data-i="${i}">+ Add to my notes</button><button type="button" data-nact="qasearch" data-i="${i}">Dig deeper on Google</button></div></details>`).join("")}</div></div>`};
-const notesHTML=b=>`<div class="page notes-page">${pathChip(b)}<div class="nb-head"><h3>My notes</h3><span class="nb-hint">Saved on this device only</span></div>
+const notesHTML=b=>`<div class="page notes-page"><div class="nb-head"><h3>My notes</h3><span class="nb-hint">Saved on this device only</span></div>
   <textarea class="nb-text" id="nb-text" data-note="${b.id}" rows="3" placeholder="Jot thoughts, quotes, words to look up…">${esc(NOTES[b.id]||"")}</textarea>
   <div class="nb-btns"><button type="button" class="btn" data-nact="copy">Copy</button><button type="button" class="btn" data-nact="search" title="Searches the selected words, or the whole note">Search Google</button><button type="button" class="btn" data-nact="searchbook" title="Searches your selection together with the book title">Search with title</button><button type="button" class="btn ghost" data-nact="all">All my notes</button></div></div>`;
 const _openBook=openBook;
-openBook=function(id){_openBook(id);const b=byId[id];if(!b)return;const sp=document.getElementById("spread");const head=sp.querySelector(".page.head");const blk=qaHTML(b)+notesHTML(b);if(head)head.insertAdjacentHTML("afterend",blk);else sp.insertAdjacentHTML("afterbegin",blk);const ta=document.getElementById("nb-text");if(ta)autoGrow(ta)};
+openBook=function(id){_openBook(id);const b=byId[id];if(!b)return;const sp=document.getElementById("spread");const head=sp.querySelector(".page.head");const blk=qaHTML(b)+notesHTML(b);if(head){head.insertAdjacentHTML("beforeend",pathChip(b));head.insertAdjacentHTML("afterend",blk)}else sp.insertAdjacentHTML("afterbegin",blk);const ta=document.getElementById("nb-text");if(ta)autoGrow(ta)};
 document.getElementById("spread").addEventListener("input",e=>{const ta=e.target.closest(".nb-text");if(!ta)return;const v=ta.value;if(v.trim())NOTES[ta.dataset.note]=v;else delete NOTES[ta.dataset.note];autoGrow(ta);saveNotes()});
 document.getElementById("spread").addEventListener("click",e=>{const btn=e.target.closest("[data-nact]");if(!btn)return;e.stopPropagation();const ta=document.getElementById("nb-text");const act=btn.dataset.nact;const b=current;
   if(act==="copy"){const t=pickText(ta);if(!t){flash(btn,"Nothing to copy");return}copyText(t).then(ok=>flash(btn,ok?"Copied ✓":"Select and copy"))}
@@ -31693,6 +31700,7 @@ document.getElementById("spread").addEventListener("click",e=>{const btn=e.targe
   else if(act==="qanote"&&b){const L=(window.QAD||{})[b.id]||[];const it=L[+btn.dataset.i];if(!it)return;const add=`Q: ${it[0]}\nA: ${it[1]}`;const cur=(NOTES[b.id]||"").trim();NOTES[b.id]=cur?cur+"\n\n"+add:add;if(ta){ta.value=NOTES[b.id];autoGrow(ta)}saveNotes();flash(btn,"Added ✓")}
   else if(act==="qasearch"&&b){const L=(window.QAD||{})[b.id]||[];const it=L[+btn.dataset.i];if(it)searchFor(it[0],`"${b.t}"`)}
   else if(act==="all"){openNotesPanel()}
+  else if(act==="pgo"){const id=btn.dataset.id;if(byId[id]){openBook(id);const r=document.getElementById("reader");if(r)r.scrollTop=0;const sp=document.getElementById("spread");if(sp&&sp.parentElement)sp.parentElement.scrollTop=0}}
   else if(act==="path"){const pid=btn.dataset.path;closeBook();setTimeout(()=>{if(window.__showPath)window.__showPath(pid)},60)}});
 // Notes panel
 const np=document.getElementById("notes-panel");let npLast=null;
