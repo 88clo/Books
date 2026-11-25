@@ -1,4 +1,10 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}.tts{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px}
+.tts button{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:6px 14px;border-radius:20px;border:1px solid rgba(60,35,15,.35);background:var(--parchment);color:var(--ink);font:inherit;font-size:.92rem;cursor:pointer}
+.tts .tts-play{background:var(--ink);color:var(--parchment);border-color:var(--ink);font-weight:600}
+.tts select{min-height:36px;border-radius:18px;border:1px solid rgba(60,35,15,.35);background:var(--parchment);color:var(--ink);font:inherit;font-size:.85rem;padding:2px 8px}
+.tts .tts-stop[hidden]{display:none}
+.tts-s.on{background:rgba(201,162,74,.35);border-radius:2px;box-shadow:0 0 0 2px rgba(201,162,74,.35)}
+</style></head><body>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -36917,6 +36923,39 @@ if(_foldDefault&&typeof SHELVES!=="undefined")SHELVES.forEach(s=>setFold(s.id,tr
   const _rr=refreshRead;refreshRead=function(id){_rr(id);paintLists();const _pc=document.querySelector(".nb-path");if(_pc&&current){const _n=document.createElement("div");_n.innerHTML=pathChip(current);if(_n.firstElementChild)_pc.replaceWith(_n.firstElementChild)}if(pick&&pick.id===id){const r=box.querySelector(".botd-read");const has=readSet.has(id);if(has&&!r)box.querySelector(".botd-btns").insertAdjacentHTML("beforeend",'<span class="botd-read">✓ Read</span>');if(!has&&r)r.remove()}};
 })();
 
+(function(){
+const SS=window.speechSynthesis;if(!SS||typeof SpeechSynthesisUtterance==="undefined")return;
+let st={state:"idle",sents:[],i:0,rate:1,bookId:null,gen:0};
+try{const r=parseFloat(localStorage.getItem("canon-tts-rate"));if(r)st.rate=r}catch(e){}
+const pickVoice=()=>{const v=SS.getVoices().filter(v=>/^en/i.test(v.lang));return v.find(x=>/enhanced|premium/i.test(x.name))||v.find(x=>/Samantha|Daniel|Karen|Serena|Google UK English|Google US English/i.test(x.name))||v.find(x=>x.default)||v[0]||null};
+const bar=()=>document.querySelector("#spread .tts");
+const paint=()=>{const b=bar();if(!b)return;const p=b.querySelector(".tts-play"),x=b.querySelector(".tts-stop");
+  p.innerHTML=st.state==="playing"?"❚❚ Pause":st.state==="paused"?"▶ Resume":"▶ Listen to summary";x.hidden=st.state==="idle";
+  document.querySelectorAll("#spread .tts-s").forEach((el,k)=>el.classList.toggle("on",st.state!=="idle"&&k===st.i))};
+const wrap=()=>{const el=document.querySelector("#spread .summary");if(!el)return[];if(!el.dataset.wrapped){const t=el.textContent.trim();const parts=t.match(/[^.!?…]+(?:[.!?…]+["'”’)\]]*|$)\s*/g)||[t];el.innerHTML=parts.map(x=>`<span class="tts-s">${x.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}</span>`).join("");el.dataset.wrapped="1"}return[...el.querySelectorAll(".tts-s")].map(x=>x.textContent.trim()).filter(Boolean)};
+const speakFrom=i=>{SS.cancel();const g=++st.gen;st.i=i;st.state="playing";paint();
+  const next=()=>{if(g!==st.gen)return;if(st.i>=st.sents.length){stop();return}
+    const u=new SpeechSynthesisUtterance(st.sents[st.i]);const v=pickVoice();if(v){u.voice=v;u.lang=v.lang}else u.lang="en-US";u.rate=st.rate;
+    u.onend=()=>{if(g!==st.gen)return;st.i++;paint();next()};u.onerror=e=>{if(g!==st.gen)return;if(e.error==="interrupted"||e.error==="canceled")return;st.i++;next()};
+    SS.speak(u)};
+  next()};
+function stop(){st.gen++;SS.cancel();st.state="idle";st.i=0;paint()}
+const pause=()=>{st.gen++;SS.cancel();st.state="paused";paint()};
+window.__ttsStop=stop;
+const barHTML=()=>`<div class="tts" role="group" aria-label="Read aloud"><button type="button" class="tts-play">▶ Listen to summary</button><button type="button" class="tts-stop" hidden>■ Stop</button><select class="tts-rate" aria-label="Reading speed">${[0.8,0.9,1,1.15,1.3,1.5].map(r=>`<option value="${r}"${r===st.rate?" selected":""}>${r}×</option>`).join("")}</select></div>`;
+const _ob=openBook;openBook=function(id){if(st.state!=="idle")stop();_ob(id);const s=document.querySelector("#spread .summary");if(s)s.insertAdjacentHTML("beforebegin",barHTML());st.bookId=id;paint()};
+const _cb=closeBook;closeBook=function(){stop();return _cb.apply(this,arguments)};
+document.getElementById("spread").addEventListener("click",e=>{
+  const s=e.target.closest(".tts-s");if(s&&st.state!=="idle"){const all=[...document.querySelectorAll("#spread .tts-s")];speakFrom(all.indexOf(s));return}
+  const b=e.target.closest(".tts button");if(!b)return;e.stopPropagation();
+  if(b.classList.contains("tts-stop")){stop();return}
+  if(st.state==="playing")pause();
+  else if(st.state==="paused")speakFrom(st.i);
+  else{st.sents=wrap();if(st.sents.length)speakFrom(0)}});
+document.getElementById("spread").addEventListener("change",e=>{const r=e.target.closest(".tts-rate");if(!r)return;st.rate=parseFloat(r.value)||1;try{localStorage.setItem("canon-tts-rate",st.rate)}catch(_){}if(st.state==="playing")speakFrom(st.i)});
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&st.state==="playing")pause()});
+if(SS.onvoiceschanged!==undefined)SS.onvoiceschanged=()=>{};SS.getVoices();
+})();
 window.__ALL=ALL;document.getElementById("intro").textContent=`A library for the well-read: ${ALL.length} books in ${nCols} boxed collections on ${SHELVES.length} regional shelves. Open a box to take out its books, open a book for its summary, vocabulary and history, and see where it falls on the timelines below.`;
 if(!collapsed.has(SHELVES[0].id))openCol(SHELVES[0].cols[0].id,false);
 fromHash();
