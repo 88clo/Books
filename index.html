@@ -2,7 +2,7 @@
 .tts button{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:6px 14px;border-radius:20px;border:1px solid rgba(60,35,15,.35);background:var(--parchment);color:var(--ink);font:inherit;font-size:.92rem;cursor:pointer}
 .tts .tts-play{background:var(--ink);color:var(--parchment);border-color:var(--ink);font-weight:600}
 .tts select{min-height:36px;border-radius:18px;border:1px solid rgba(60,35,15,.35);background:var(--parchment);color:var(--ink);font:inherit;font-size:.85rem;padding:2px 8px}
-.tts .tts-stop[hidden]{display:none}
+.tts .tts-stop[hidden]{display:none}.tts-hint{flex-basis:100%;margin:2px 0 0;font-size:.85rem;color:var(--rubric)}
 .tts-s.on{background:rgba(201,162,74,.35);border-radius:2px;box-shadow:0 0 0 2px rgba(201,162,74,.35)}
 </style></head><body>
 <!DOCTYPE html>
@@ -36927,20 +36927,27 @@ if(_foldDefault&&typeof SHELVES!=="undefined")SHELVES.forEach(s=>setFold(s.id,tr
 const SS=window.speechSynthesis;if(!SS||typeof SpeechSynthesisUtterance==="undefined")return;
 let st={state:"idle",sents:[],i:0,rate:1,bookId:null,gen:0};
 try{const r=parseFloat(localStorage.getItem("canon-tts-rate"));if(r)st.rate=r}catch(e){}
-const pickVoice=()=>{const v=SS.getVoices().filter(v=>/^en/i.test(v.lang));return v.find(x=>/enhanced|premium/i.test(x.name))||v.find(x=>/Samantha|Daniel|Karen|Serena|Google UK English|Google US English/i.test(x.name))||v.find(x=>x.default)||v[0]||null};
+const pickVoice=()=>{let v=[];try{v=SS.getVoices().filter(v=>/^en/i.test(v.lang)&&v.localService!==false)}catch(e){}return v.find(x=>/enhanced|premium/i.test(x.name))||null};
 const bar=()=>document.querySelector("#spread .tts");
+const hint=m=>{const b=bar();if(!b)return;let h=b.querySelector(".tts-hint");if(!m){if(h)h.remove();return}if(!h){h=document.createElement("p");h.className="tts-hint";b.appendChild(h)}h.textContent=m};
 const paint=()=>{const b=bar();if(!b)return;const p=b.querySelector(".tts-play"),x=b.querySelector(".tts-stop");
   p.innerHTML=st.state==="playing"?"❚❚ Pause":st.state==="paused"?"▶ Resume":"▶ Listen to summary";x.hidden=st.state==="idle";
   document.querySelectorAll("#spread .tts-s").forEach((el,k)=>el.classList.toggle("on",st.state!=="idle"&&k===st.i))};
 const wrap=()=>{const el=document.querySelector("#spread .summary");if(!el)return[];if(!el.dataset.wrapped){const t=el.textContent.trim();const parts=t.match(/[^.!?…]+(?:[.!?…]+["'”’)\]]*|$)\s*/g)||[t];el.innerHTML=parts.map(x=>`<span class="tts-s">${x.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}</span>`).join("");el.dataset.wrapped="1"}return[...el.querySelectorAll(".tts-s")].map(x=>x.textContent.trim()).filter(Boolean)};
-const speakFrom=i=>{SS.cancel();const g=++st.gen;st.i=i;st.state="playing";paint();
-  const next=()=>{if(g!==st.gen)return;if(st.i>=st.sents.length){stop();return}
-    const u=new SpeechSynthesisUtterance(st.sents[st.i]);const v=pickVoice();if(v){u.voice=v;u.lang=v.lang}else u.lang="en-US";u.rate=st.rate;
-    u.onend=()=>{if(g!==st.gen)return;st.i++;paint();next()};u.onerror=e=>{if(g!==st.gen)return;if(e.error==="interrupted"||e.error==="canceled")return;st.i++;next()};
-    SS.speak(u)};
-  next()};
-function stop(){st.gen++;SS.cancel();st.state="idle";st.i=0;paint()}
-const pause=()=>{st.gen++;SS.cancel();st.state="paused";paint()};
+const keep=[];let heard=false,hintT=null;
+const say=g=>{if(g!==st.gen)return;if(st.i>=st.sents.length){stop();return}
+  const u=new SpeechSynthesisUtterance(st.sents[st.i]);keep.push(u);if(keep.length>8)keep.shift();
+  u.lang="en-US";const v=pickVoice();if(v){u.voice=v;u.lang=v.lang}u.rate=st.rate;u.volume=1;
+  u.onstart=()=>{heard=true;clearTimeout(hintT);hint("")};
+  u.onend=()=>{if(g!==st.gen)return;st.i++;paint();say(g)};
+  u.onerror=e=>{if(g!==st.gen)return;if(e.error==="interrupted"||e.error==="canceled")return;st.i++;say(g)};
+  try{SS.resume()}catch(e){}SS.speak(u)};
+const speakFrom=(i,fromTap)=>{const g=++st.gen;st.i=i;st.state="playing";paint();
+  clearTimeout(hintT);if(!heard)hintT=setTimeout(()=>{if(st.state==="playing"&&!heard)hint("Can’t hear anything? Flip the silent switch on the side of your iPhone off (no orange showing), turn the volume up, and tap Listen again.")},3000);
+  if(SS.speaking||SS.pending){SS.cancel();setTimeout(()=>say(g),150)}else say(g)};
+function stop(){st.gen++;clearTimeout(hintT);try{SS.cancel()}catch(e){}st.state="idle";st.i=0;paint()}
+const pause=()=>{st.state="paused";paint();try{SS.pause()}catch(e){}setTimeout(()=>{if(st.state==="paused"&&SS.speaking&&!SS.paused){st.gen++;SS.cancel()}},300)};
+const resume=()=>{if(SS.paused&&SS.speaking){st.state="playing";paint();try{SS.resume()}catch(e){}setTimeout(()=>{if(st.state==="playing"&&(SS.paused||!SS.speaking))speakFrom(st.i)},500)}else speakFrom(st.i)};
 window.__ttsStop=stop;
 const barHTML=()=>`<div class="tts" role="group" aria-label="Read aloud"><button type="button" class="tts-play">▶ Listen to summary</button><button type="button" class="tts-stop" hidden>■ Stop</button><select class="tts-rate" aria-label="Reading speed">${[0.8,0.9,1,1.15,1.3,1.5].map(r=>`<option value="${r}"${r===st.rate?" selected":""}>${r}×</option>`).join("")}</select></div>`;
 const _ob=openBook;openBook=function(id){if(st.state!=="idle")stop();_ob(id);const s=document.querySelector("#spread .summary");if(s)s.insertAdjacentHTML("beforebegin",barHTML());st.bookId=id;paint()};
@@ -36950,7 +36957,7 @@ document.getElementById("spread").addEventListener("click",e=>{
   const b=e.target.closest(".tts button");if(!b)return;e.stopPropagation();
   if(b.classList.contains("tts-stop")){stop();return}
   if(st.state==="playing")pause();
-  else if(st.state==="paused")speakFrom(st.i);
+  else if(st.state==="paused")resume();
   else{st.sents=wrap();if(st.sents.length)speakFrom(0)}});
 document.getElementById("spread").addEventListener("change",e=>{const r=e.target.closest(".tts-rate");if(!r)return;st.rate=parseFloat(r.value)||1;try{localStorage.setItem("canon-tts-rate",st.rate)}catch(_){}if(st.state==="playing")speakFrom(st.i)});
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&st.state==="playing")pause()});
